@@ -181,6 +181,8 @@ public class HashtableMigrator {
     /**
      * Replaces Hashtable type references with Map.
      * EXCLUDES Properties.
+     * IMPORTANT: Skips types inside ObjectCreationExpr (new Hashtable()) —
+     * those are handled by ObjectCreationVisitor which correctly uses HashMap.
      */
     private class TypeReplacementVisitor extends VoidVisitorAdapter<Void> {
         
@@ -189,6 +191,12 @@ public class HashtableMigrator {
             super.visit(type, arg);
             
             if ("Hashtable".equals(type.getNameAsString())) {
+                // Skip if this type is inside a "new" expression
+                // ObjectCreationVisitor handles those (new Hashtable → new HashMap)
+                if (isInsideObjectCreation(type)) {
+                    return;
+                }
+                
                 // Check if this is in a Properties context using AST
                 if (!isInPropertiesContext(type)) {
                     int line = type.getBegin().map(pos -> pos.line).orElse(0);
@@ -366,6 +374,25 @@ public class HashtableMigrator {
     }
     
     // ===== Utility Methods =====
+    
+    /**
+     * Checks if a type node is inside an ObjectCreationExpr (new X()).
+     * Used to prevent TypeReplacementVisitor from changing "new Hashtable" to "new Map"
+     * (which is invalid since Map is an interface).
+     */
+    private boolean isInsideObjectCreation(ClassOrInterfaceType type) {
+        Node parent = type.getParentNode().orElse(null);
+        while (parent != null) {
+            if (parent instanceof ObjectCreationExpr) {
+                return true;
+            }
+            if (parent instanceof com.github.javaparser.ast.stmt.Statement) {
+                break;
+            }
+            parent = parent.getParentNode().orElse(null);
+        }
+        return false;
+    }
     
     private boolean isHashtableType(Type type) {
         if (type.isClassOrInterfaceType()) {

@@ -166,6 +166,8 @@ public class VectorMigrator {
     
     /**
      * Replaces Vector type references with List.
+     * IMPORTANT: Skips types inside ObjectCreationExpr (new Vector()) —
+     * those are handled by ObjectCreationVisitor which correctly uses ArrayList.
      */
     private class TypeReplacementVisitor extends VoidVisitorAdapter<Void> {
         
@@ -174,6 +176,12 @@ public class VectorMigrator {
             super.visit(type, arg);
             
             if ("Vector".equals(type.getNameAsString())) {
+                // Skip if this type is inside a "new" expression
+                // ObjectCreationVisitor handles those (new Vector → new ArrayList)
+                if (isInsideObjectCreation(type)) {
+                    return;
+                }
+                
                 int line = type.getBegin().map(pos -> pos.line).orElse(0);
                 String original = type.toString();
                 
@@ -422,6 +430,26 @@ public class VectorMigrator {
     }
     
     // ===== Utility Methods =====
+    
+    /**
+     * Checks if a type node is inside an ObjectCreationExpr (new X()).
+     * Used to prevent TypeReplacementVisitor from changing "new Vector" to "new List"
+     * (which is invalid since List is an interface).
+     */
+    private boolean isInsideObjectCreation(ClassOrInterfaceType type) {
+        Node parent = type.getParentNode().orElse(null);
+        while (parent != null) {
+            if (parent instanceof ObjectCreationExpr) {
+                return true;
+            }
+            // Stop walking up at statement level
+            if (parent instanceof com.github.javaparser.ast.stmt.Statement) {
+                break;
+            }
+            parent = parent.getParentNode().orElse(null);
+        }
+        return false;
+    }
     
     /**
      * Checks if a type is Vector.

@@ -6,7 +6,7 @@
 
     <groupId>com.hphis</groupId>
     <artifactId>s1149-refactor-tool</artifactId>
-    <version>1.1.0</version>
+    <version>1.2.0</version>
     <packaging>jar</packaging>
 
     <name>S1149 Refactor Tool</name>
