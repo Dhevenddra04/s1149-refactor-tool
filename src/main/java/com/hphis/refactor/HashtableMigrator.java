@@ -376,20 +376,13 @@ public class HashtableMigrator {
     // ===== Utility Methods =====
     
     /**
-     * Checks if a type node is inside an ObjectCreationExpr (new X()).
-     * Used to prevent TypeReplacementVisitor from changing "new Hashtable" to "new Map"
-     * (which is invalid since Map is an interface).
+     * Checks if a type node is the direct type of an ObjectCreationExpr (new X()).
+     * Only returns true if the IMMEDIATE parent is ObjectCreationExpr.
      */
     private boolean isInsideObjectCreation(ClassOrInterfaceType type) {
         Node parent = type.getParentNode().orElse(null);
-        while (parent != null) {
-            if (parent instanceof ObjectCreationExpr) {
-                return true;
-            }
-            if (parent instanceof com.github.javaparser.ast.stmt.Statement) {
-                break;
-            }
-            parent = parent.getParentNode().orElse(null);
+        if (parent instanceof ObjectCreationExpr) {
+            return true;
         }
         return false;
     }

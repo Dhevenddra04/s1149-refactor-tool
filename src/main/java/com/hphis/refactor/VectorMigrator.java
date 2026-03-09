@@ -432,21 +432,20 @@ public class VectorMigrator {
     // ===== Utility Methods =====
     
     /**
-     * Checks if a type node is inside an ObjectCreationExpr (new X()).
-     * Used to prevent TypeReplacementVisitor from changing "new Vector" to "new List"
-     * (which is invalid since List is an interface).
+     * Checks if a type node is the direct type of an ObjectCreationExpr (new X()).
+     * Only returns true if the IMMEDIATE parent is ObjectCreationExpr,
+     * not if it's just somewhere in the same statement.
+     * 
+     * AST structure for "Vector<String> params = new Vector<String>()":
+     *   VariableDeclarator
+     *     type: ClassOrInterfaceType "Vector" ← this should NOT be skipped
+     *     initializer: ObjectCreationExpr
+     *       type: ClassOrInterfaceType "Vector" ← this SHOULD be skipped
      */
     private boolean isInsideObjectCreation(ClassOrInterfaceType type) {
         Node parent = type.getParentNode().orElse(null);
-        while (parent != null) {
-            if (parent instanceof ObjectCreationExpr) {
-                return true;
-            }
-            // Stop walking up at statement level
-            if (parent instanceof com.github.javaparser.ast.stmt.Statement) {
-                break;
-            }
-            parent = parent.getParentNode().orElse(null);
+        if (parent instanceof ObjectCreationExpr) {
+            return true;
         }
         return false;
     }
